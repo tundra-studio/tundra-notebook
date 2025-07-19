@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observable Notebook Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #007acc;
+            background: #f8f9fa;
+        }
+        .success { border-color: #28a745; }
+        .error { border-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>Observable Notebook Implementation Test</h1>
+    
+    <div class="test-section">
+        <h2>✅ Features Implemented</h2>
+        
+        <div class="test-case success">
+            <h3>1. Observable Runtime Integration</h3>
+            <p>✓ Uses @observablehq/runtime for reactive computation</p>
+            <p>✓ Proper Inspector integration for output display</p>
+            <p>✓ Runtime cleanup on component unmount</p>
+        </div>
+        
+        <div class="test-case success">
+            <h3>2. Cell Management</h3>
+            <p>✓ Add new cells</p>
+            <p>✓ Delete cells</p>
+            <p>✓ Move cells up/down</p>
+            <p>✓ Real-time code editing</p>
+        </div>
+        
+        <div class="test-case success">
+            <h3>3. Variable Naming & Dependencies</h3>
+            <p>✓ Named variables (x, y, etc.)</p>
+            <p>✓ Automatic dependency detection</p>
+            <p>✓ Reactive updates when dependencies change</p>
+        </div>
+        
+        <div class="test-case success">
+            <h3>4. User Interface</h3>
+            <p>✓ Clean, modern design</p>
+            <p>✓ Syntax highlighting placeholder</p>
+            <p>✓ Tab support in code editor</p>
+            <p>✓ Responsive layout</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📋 Test Cases to Verify</h2>
+        
+        <div class="test-case">
+            <h3>Basic Math Operations</h3>
+            <pre>
+Cell 1 (name: x): x = 2 + 2
+Cell 2 (name: y): y = x * 3  
+Cell 3: x + y
+Expected: 4, 12, 16
+            </pre>
+        </div>
+        
+        <div class="test-case">
+            <h3>Array Operations</h3>
+            <pre>
+Cell 1 (name: data): data = [1, 2, 3, 4, 5]
+Cell 2 (name: doubled): doubled = data.map(x => x * 2)
+Cell 3: doubled.reduce((a, b) => a + b, 0)
+Expected: [1,2,3,4,5], [2,4,6,8,10], 30
+            </pre>
+        </div>
+        
+        <div class="test-case">
+            <h3>DOM Manipulation</h3>
+            <pre>
+Cell 1: {
+  const div = document.createElement('div');
+  div.innerHTML = '&lt;h3&gt;Hello from Observable!&lt;/h3&gt;';
+  div.style.background = '#e3f2fd';
+  div.style.padding = '10px';
+  div.style.borderRadius = '4px';
+  return div;
+}
+Expected: Rendered HTML element
+            </pre>
+        </div>
+        
+        <div class="test-case">
+            <h3>Async Operations</h3>
+            <pre>
+Cell 1 (name: promise): promise = new Promise(resolve => 
+  setTimeout(() => resolve("Data loaded!"), 1000)
+)
+Cell 2: promise.then(result => result.toUpperCase())
+Expected: "Data loaded!" then "DATA LOADED!"
+            </pre>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🚀 How to Test</h2>
+        <ol>
+            <li>Start the dev server: <code>npm run dev</code></li>
+            <li>Open http://localhost:5174</li>
+            <li>Try the test cases above</li>
+            <li>Verify that:
+                <ul>
+                    <li>Variables update automatically when dependencies change</li>
+                    <li>Errors are displayed clearly</li>
+                    <li>Cell operations (add/delete/move) work correctly</li>
+                    <li>The interface is responsive and user-friendly</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>📚 Architecture Overview</h2>
+        <p><strong>Frontend:</strong> SolidJS with reactive signals</p>
+        <p><strong>Runtime:</strong> @observablehq/runtime for computation</p>
+        <p><strong>Styling:</strong> Tailwind-like utility classes</p>
+        <p><strong>Dependencies:</strong> Automatic detection via regex parsing</p>
+        <p><strong>Inspector:</strong> Observable Inspector for output rendering</p>
+    </div>
+</body>
+</html>
