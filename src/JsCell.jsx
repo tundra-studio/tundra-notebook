@@ -3,10 +3,11 @@ import { createSignal } from "solid-js";
 export default function JsCell({ cell, updateCell, runCell, addCell, deleteCell, menuOpenId, setMenuOpenId }) {
   const [isFocused, setIsFocused] = createSignal(false);
   const menuOpen = () => menuOpenId() === cell.id;
+  let textareaRef = null;
+  let lastCursor = null;
 
   return (
     <div class="block" style="position: relative; padding: 0; margin: 0.5rem 0;">
-      {/* Main cell container */}
       <div class="box" style="border: 1px solid #e8e8e8; border-radius: 8px; padding: 0; margin: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: box-shadow 0.2s;"
         onMouseEnter={e => e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"}
         onMouseLeave={e => e.target.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"}
@@ -23,7 +24,6 @@ export default function JsCell({ cell, updateCell, runCell, addCell, deleteCell,
               <iconify-icon icon="solar:menu-dots-linear" width="16" height="16" style="color: #888;"></iconify-icon>
             </button>
             <div style="margin-top: 0.25rem; color: #ccc; font-size: 0.8rem;">⋮⋮</div>
-            
             {/* Add button below icons */}
             <button
               class="button is-small is-white"
@@ -35,7 +35,6 @@ export default function JsCell({ cell, updateCell, runCell, addCell, deleteCell,
             >
               <iconify-icon icon="solar:add-circle-linear" width="12" height="12"></iconify-icon>
             </button>
-            
             {menuOpen() && (
               <div class="dropdown-content" style="position: absolute; z-index: 20; left: 2.5rem; top: 0.5rem; min-width: 160px; padding: 0.5rem; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);">
                 <a class="dropdown-item" style="padding: 0.5rem; border-radius: 4px; cursor: pointer;" 
@@ -57,54 +56,73 @@ export default function JsCell({ cell, updateCell, runCell, addCell, deleteCell,
               </div>
             )}
           </div>
-          
           {/* Main content area */}
-          <div style="flex: 1; padding: 0.75rem;">
+          <div style="flex: 1; padding: 0.5rem;">
             <div class="field has-addons" style="margin-bottom: 0.5rem;">
               <div class="control" style="flex: 1;">
                 <textarea
+                  ref={el => {
+                    textareaRef = el;
+                    if (el) {
+                      console.log('[JsCell] textareaRef set', el);
+                    }
+                  }}
                   data-cell-id={cell.id}
                   class="textarea"
                   style={`font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 1rem; line-height: 1.5; border: none; box-shadow: none; resize: vertical; min-height: 2.5rem; width: 100%; ${isFocused() ? 'border-left: 3px solid #3273dc;' : 'border-left: 3px solid transparent;'} padding: 0.75rem; background: #fafafa; border-radius: 4px;`}
                   rows={Math.max(3, cell.code.split("\n").length)}
                   placeholder="// JavaScript code..."
                   onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
+                  onBlur={() => { setIsFocused(false); runCell(cell); }}
                   value={cell.code}
-                  onInput={e => updateCell(cell.id, 'code', e.currentTarget.value)}
+                  onInput={e => {
+                    lastCursor = [e.target.selectionStart, e.target.selectionEnd];
+                    console.log('[JsCell] onInput', { lastCursor, value: e.currentTarget.value });
+                    updateCell(cell.id, 'code', e.currentTarget.value);
+                    queueMicrotask(() => {
+                      if (textareaRef && lastCursor) {
+                        textareaRef.focus();
+                        textareaRef.selectionStart = lastCursor[0];
+                        textareaRef.selectionEnd = lastCursor[1];
+                        console.log('[JsCell] Restored cursor after input', { selectionStart: textareaRef.selectionStart, selectionEnd: textareaRef.selectionEnd, active: document.activeElement === textareaRef });
+                      } else {
+                        console.warn('[JsCell] textareaRef or lastCursor missing after input', { textareaRef, lastCursor });
+                      }
+                    });
+                  }}
                   onKeyDown={e => {
                     if (e.key === 'Tab') {
                       e.preventDefault();
-                      const start = e.target.selectionStart;
-                      const end = e.target.selectionEnd;
-                      const value = e.target.value;
-                      e.target.value = value.substring(0, start) + '  ' + value.substring(end);
-                      e.target.selectionStart = e.target.selectionEnd = start + 2;
-                      updateCell(cell.id, 'code', e.target.value);
+                      const textarea = e.target;
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const value = textarea.value;
+                      const newValue = value.substring(0, start) + '  ' + value.substring(end);
+                      lastCursor = [start + 2, start + 2];
+                      console.log('[JsCell] onKeyDown Tab', { start, end, lastCursor, newValue });
+                      updateCell(cell.id, 'code', newValue);
+                      queueMicrotask(() => {
+                        if (textareaRef && lastCursor) {
+                          textareaRef.focus();
+                          textareaRef.selectionStart = lastCursor[0];
+                          textareaRef.selectionEnd = lastCursor[1];
+                          console.log('[JsCell] Restored cursor after Tab', { selectionStart: textareaRef.selectionStart, selectionEnd: textareaRef.selectionEnd, active: document.activeElement === textareaRef });
+                        } else {
+                          console.warn('[JsCell] textareaRef or lastCursor missing after Tab', { textareaRef, lastCursor });
+                        }
+                      });
                     } else if (e.key === 'Enter' && e.shiftKey) {
-                      // Shift+Enter: Exécuter et garder le focus
                       e.preventDefault();
-                      runCell(cell, { keepFocus: true });
+                      runCell(cell);
                     } else if (e.key === 'Enter' && e.ctrlKey) {
-                      // Ctrl+Enter: Exécuter et passer à la cellule suivante
                       e.preventDefault();
                       runCell(cell, { moveToNext: true });
                     }
                   }}
                 />
-              </div>
-              <div class="control">
-                <button
-                  class="button is-primary"
-                  style="height: 2.5rem; border-radius: 0 4px 4px 0;"
-                  title="Exécuter (Ctrl+Entrée ou Shift+Entrée)"
-                  onClick={() => runCell(cell)}
-                >
-                  <iconify-icon icon="solar:play-linear" width="16" height="16"></iconify-icon>
-                </button>
+
               </div>
             </div>
-            
             {/* Output area */}
             <div class="content" style="min-height: 1rem; padding: 0.5rem; background: white; border-radius: 4px; border: 1px solid #f0f0f0;">
               <div id={`output-${cell.id}`} style="font-size: 0.9rem; line-height: 1.4;"></div>
