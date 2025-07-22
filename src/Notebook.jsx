@@ -225,7 +225,9 @@ function ScriptCell({ cell, updateCell, runCell, menuOpenId, setMenuOpenId }) {
     <div class="notebook-cell script-cell">
       <div class="cell-container">
         <div class="cell-sidebar">
-          <div class="cell-type-indicator">S</div>
+          <div class="cell-type-indicator">
+            <i class="fa-solid fa-scroll" style="font-size:18px; opacity:0.7;"></i>
+          </div>
           <button
             class="cell-menu-btn"
             onClick={() => setMenuOpenId(menuOpen() ? null : cell.id)}
@@ -243,11 +245,12 @@ function ScriptCell({ cell, updateCell, runCell, menuOpenId, setMenuOpenId }) {
           )}
         </div>
         <div class="cell-content">
+          <div class="cell-output"><div id={`output-${cell.id}`}></div></div>
           <textarea
             ref={el => { textareaRef = el; }}
             data-cell-id={cell.id}
-            class={`cell-textarea ${isFocused() ? 'focused' : ''}`}
-            rows={Math.max(3, cell.code.split("\n").length)}
+            class={`cell-textarea auto-resize ${isFocused() ? 'focused' : ''}`}
+            rows={1}
             placeholder="// Script setup code (runs first)..."
             onFocus={() => setIsFocused(true)}
             onBlur={() => { setIsFocused(false); runCell(cell); }}
@@ -255,6 +258,11 @@ function ScriptCell({ cell, updateCell, runCell, menuOpenId, setMenuOpenId }) {
             onInput={e => {
               lastCursor = [e.target.selectionStart, e.target.selectionEnd];
               updateCell(cell.id, 'code', e.currentTarget.value);
+              // Auto-resize
+              if (textareaRef) {
+                textareaRef.style.height = 'auto';
+                textareaRef.style.height = textareaRef.scrollHeight + 'px';
+              }
               queueMicrotask(() => {
                 if (textareaRef && lastCursor) {
                   textareaRef.focus();
@@ -294,26 +302,52 @@ function ScriptCell({ cell, updateCell, runCell, menuOpenId, setMenuOpenId }) {
               }
             }}
           />
-          <div class="cell-output">
-            <div id={`output-${cell.id}`}></div>
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
+import { highlightJS } from './highlight.js';
+import { createEffect } from 'solid-js';
 function JavaScriptCell({ cell, updateCell, runCell, addCell, deleteCell, menuOpenId, setMenuOpenId }) {
   const [isFocused, setIsFocused] = createSignal(false);
   const menuOpen = () => menuOpenId() === cell.id;
   let textareaRef = null;
+  let overlayRef = null;
+  let wrapperRef = null;
   let lastCursor = null;
+
+  // Effect: sync heights after every code change
+  createEffect(() => {
+    if (textareaRef) {
+      textareaRef.style.height = 'auto';
+      textareaRef.style.height = textareaRef.scrollHeight + 'px';
+    }
+    if (overlayRef && textareaRef) {
+      overlayRef.style.height = textareaRef.style.height;
+      overlayRef.innerHTML = `<pre class='language-javascript' style='margin:0;padding:0;background:none;'><code class='language-javascript'>${highlightJS(cell.code || '')}</code></pre>`;
+    }
+    if (wrapperRef && textareaRef) {
+      wrapperRef.style.height = textareaRef.scrollHeight + 'px';
+    }
+  });
+
+  // Sync overlay scroll with textarea
+  const syncScroll = () => {
+    if (textareaRef && overlayRef) {
+      overlayRef.scrollTop = textareaRef.scrollTop;
+      overlayRef.scrollLeft = textareaRef.scrollLeft;
+    }
+  };
 
   return (
     <div class="notebook-cell js-cell">
       <div class="cell-container">
         <div class="cell-sidebar">
-          <div class="cell-type-indicator">JS</div>
+          <div class="cell-type-indicator">
+            <i class="fa-brands fa-js" style="font-size:18px; color:#f7e018;"></i>
+          </div>
           <button
             class="cell-menu-btn"
             onClick={() => setMenuOpenId(menuOpen() ? null : cell.id)}
@@ -347,36 +381,35 @@ function JavaScriptCell({ cell, updateCell, runCell, addCell, deleteCell, menuOp
           )}
         </div>
         <div class="cell-content">
-          <textarea
-            ref={el => { textareaRef = el; }}
-            data-cell-id={cell.id}
-            class={`cell-textarea ${isFocused() ? 'focused' : ''}`}
-            rows={Math.max(3, cell.code.split("\n").length)}
-            placeholder="// JavaScript code..."
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => { setIsFocused(false); runCell(cell); }}
-            value={cell.code}
-            onInput={e => {
-              lastCursor = [e.target.selectionStart, e.target.selectionEnd];
-              updateCell(cell.id, 'code', e.currentTarget.value);
-              queueMicrotask(() => {
-                if (textareaRef && lastCursor) {
-                  textareaRef.focus();
-                  textareaRef.selectionStart = lastCursor[0];
-                  textareaRef.selectionEnd = lastCursor[1];
+          <div class="cell-output"><div id={`output-${cell.id}`}></div></div>
+          <div class="cell-editor-wrapper" ref={el => { wrapperRef = el; }} style="position:relative; width:100%;">
+            <div class="cell-highlight-overlay" 
+              ref={el => { overlayRef = el; }}
+              aria-hidden="true"
+              innerHTML={`<pre class='language-javascript' style='margin:0;padding:0;background:none;'><code class='language-javascript'>${highlightJS(cell.code || '')}</code></pre>`}
+              style={`pointer-events:none; position:absolute; top:0; left:0; width:100%; min-height:3em; color:inherit; background:transparent; font-family:inherit; font-size:inherit; z-index:1; white-space:pre-wrap; word-break:break-word; padding:0; margin:0;`}
+            />
+            <textarea
+              ref={el => { textareaRef = el; }}
+              data-cell-id={cell.id}
+              class={`cell-textarea auto-resize ${isFocused() ? 'focused' : ''}`}
+              rows={1}
+              placeholder="// JavaScript code..."
+              style="position:relative; background:transparent; color:transparent; caret-color:#222; z-index:2; width:100%; min-height:3em; resize:none; overflow:hidden;"
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => { setIsFocused(false); runCell(cell); }}
+              value={cell.code}
+              onInput={e => {
+                lastCursor = [e.target.selectionStart, e.target.selectionEnd];
+                updateCell(cell.id, 'code', e.currentTarget.value);
+                // Auto-resize textarea and sync overlay/wrapper
+                if (textareaRef) {
+                  textareaRef.style.height = 'auto';
+                  textareaRef.style.height = textareaRef.scrollHeight + 'px';
+                  if (overlayRef) overlayRef.style.height = textareaRef.style.height;
+                  if (overlayRef) overlayRef.innerHTML = `<pre class='language-javascript' style='margin:0;padding:0;background:none;'><code class='language-javascript'>${highlightJS(e.currentTarget.value)}</code></pre>`;
+                  if (overlayRef && overlayRef.parentElement) overlayRef.parentElement.style.height = textareaRef.scrollHeight + 'px';
                 }
-              });
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Tab') {
-                e.preventDefault();
-                const textarea = e.target;
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                const value = textarea.value;
-                const newValue = value.substring(0, start) + '  ' + value.substring(end);
-                lastCursor = [start + 2, start + 2];
-                updateCell(cell.id, 'code', newValue);
                 queueMicrotask(() => {
                   if (textareaRef && lastCursor) {
                     textareaRef.focus();
@@ -384,22 +417,44 @@ function JavaScriptCell({ cell, updateCell, runCell, addCell, deleteCell, menuOp
                     textareaRef.selectionEnd = lastCursor[1];
                   }
                 });
-              } else if (e.key === 'Enter' && e.shiftKey) {
-                e.preventDefault();
-                runCell(cell);
-                queueMicrotask(() => {
-                  if (textareaRef) {
-                    textareaRef.focus();
+              }}
+              onScroll={syncScroll}
+              onKeyDown={e => {
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  const textarea = e.target;
+                  const start = textarea.selectionStart;
+                  const end = textarea.selectionEnd;
+                  const value = textarea.value;
+                  const newValue = value.substring(0, start) + '  ' + value.substring(end);
+                  lastCursor = [start + 2, start + 2];
+                  updateCell(cell.id, 'code', newValue);
+                  if (overlayRef && textareaRef && overlayRef.parentElement) {
+                    overlayRef.style.height = textareaRef.style.height;
+                    overlayRef.innerHTML = `<pre class='language-javascript' style='margin:0;padding:0;background:none;'><code class='language-javascript'>${highlightJS(newValue)}</code></pre>`;
+                    overlayRef.parentElement.style.height = textareaRef.scrollHeight + 'px';
                   }
-                });
-              } else if (e.key === 'Enter' && e.ctrlKey) {
-                e.preventDefault();
-                runCell(cell, { moveToNext: true });
-              }
-            }}
-          />
-          <div class="cell-output">
-            <div id={`output-${cell.id}`}></div>
+                  queueMicrotask(() => {
+                    if (textareaRef && lastCursor) {
+                      textareaRef.focus();
+                      textareaRef.selectionStart = lastCursor[0];
+                      textareaRef.selectionEnd = lastCursor[1];
+                    }
+                  });
+                } else if (e.key === 'Enter' && e.shiftKey) {
+                  e.preventDefault();
+                  runCell(cell);
+                  queueMicrotask(() => {
+                    if (textareaRef) {
+                      textareaRef.focus();
+                    }
+                  });
+                } else if (e.key === 'Enter' && e.ctrlKey) {
+                  e.preventDefault();
+                  runCell(cell, { moveToNext: true });
+                }
+              }}
+            />
           </div>
         </div>
       </div>
@@ -418,7 +473,9 @@ function MarkdownCell({ cell, updateCell, addCell, deleteCell, menuOpenId, setMe
     <div class="notebook-cell markdown-cell">
       <div class="cell-container">
         <div class="cell-sidebar">
-          <div class="cell-type-indicator">MD</div>
+          <div class="cell-type-indicator">
+            <i class="fa-brands fa-markdown" style="font-size:18px;"></i>
+          </div>
           <button
             class="cell-menu-btn"
             onClick={() => setMenuOpenId(menuOpen() ? null : cell.id)}
@@ -791,18 +848,31 @@ Try editing the data in the second cell!`
       <div class="notebook" style={{ 'padding-top': '54px' }}>
         <div class="notebook-content">
           <For each={cells}>
-            {(cell) => {
+            {(cell, i) => {
+              const idx = i();
+              const insertBtn = idx > 0 ? (
+                <button
+                  class="cell-insert-btn"
+                  title="Add cell above"
+                  onClick={() => addCell(cells[idx-1].id)}
+                  tabIndex={-1}
+                >
+                  <iconify-icon icon="solar:add-circle-linear" width="18" height="18" />
+                </button>
+              ) : null;
+              let cellNode = null;
               switch (cell.type) {
                 case 'script':
-                  return <ScriptCell 
+                  cellNode = <ScriptCell 
                     cell={cell} 
                     updateCell={updateCell} 
                     runCell={runCell}
                     menuOpenId={menuOpenId}
                     setMenuOpenId={setMenuOpenId}
                   />;
+                  break;
                 case 'javascript':
-                  return <JavaScriptCell 
+                  cellNode = <JavaScriptCell 
                     cell={cell} 
                     updateCell={updateCell} 
                     runCell={runCell}
@@ -811,8 +881,9 @@ Try editing the data in the second cell!`
                     menuOpenId={menuOpenId}
                     setMenuOpenId={setMenuOpenId}
                   />;
+                  break;
                 case 'markdown':
-                  return <MarkdownCell 
+                  cellNode = <MarkdownCell 
                     cell={cell} 
                     updateCell={updateCell}
                     addCell={addCell}
@@ -820,9 +891,16 @@ Try editing the data in the second cell!`
                     menuOpenId={menuOpenId}
                     setMenuOpenId={setMenuOpenId}
                   />;
+                  break;
                 default:
-                  return null;
+                  cellNode = null;
               }
+              return (
+                <div style="position:relative;">
+                  {insertBtn}
+                  {cellNode}
+                </div>
+              );
             }}
           </For>
         </div>
